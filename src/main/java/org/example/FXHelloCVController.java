@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
+import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.QRCodeDetector;
@@ -129,6 +130,10 @@ public class FXHelloCVController
             {
                 // read the current frame
                 this.capture.read(frame);
+                Mat sub = frame.submat(new Rect(new Point(50,50), new Point(400,400)));
+                Imgproc.rectangle(frame, new Point(50,50), new Point(400,400), new Scalar(0,0,255), 2);
+
+
 
 
 
@@ -136,7 +141,7 @@ public class FXHelloCVController
                 if (!frame.empty())
                 {
                     //Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2GRAY);
-                    String result = qrDecoder.detectAndDecode(frame, points);
+                    String result = qrDecoder.detectAndDecode(sub, points);
                     if(result.isEmpty()) result = "idk";
 
                     System.out.println(result + " " + points.dump());
