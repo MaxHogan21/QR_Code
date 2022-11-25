@@ -1,0 +1,45 @@
+import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
+
+plugins {
+    id 'application'
+}
+group 'com.example'
+version '1.0-SNAPSHOT'
+repositories {
+    mavenCentral()
+}
+def javaFXPlatform = getJavaFXPlatform()
+def javaFXVersion = '19'
+dependencies {
+    // you need a dependency for each of the JavaFX modules you're going to use
+    implementation "org.openjfx:javafx-base:${javaFXVersion}:${javaFXPlatform}"
+    implementation "org.openjfx:javafx-controls:${javaFXVersion}:${javaFXPlatform}"
+    implementation "org.openjfx:javafx-graphics:${javaFXVersion}:${javaFXPlatform}"
+    implementation "org.openjfx:javafx-fxml:${javaFXVersion}:${javaFXPlatform}"
+    implementation "org.openjfx:javafx-swing:${javaFXVersion}:${javaFXPlatform}"
+    implementation files('C:/Users/maxim/Downloads/opencv/build/java/opencv-460.jar')
+    implementation 'com.yanzhenjie.zbar:zbar:1.0.0'
+    implementation 'com.yanzhenjie.zbar:camera:1.0.0'
+}
+application {
+    //Java Module System module name
+    mainModule.set('com.example.javafxgradle')
+    //Your JavaFX application class
+    mainClass.set('com.example.javafxgradle.HelloFX')
+}
+java {
+    // this enables Java Modularity in Gradle (version 6.7 and above)
+    modularity.inferModulePath.set(true)
+}
+// Based on this StackOverflow answer: https://stackoverflow.com/a/65209664/653519
+private static String getJavaFXPlatform() {
+    def currentOS = DefaultNativePlatform.currentOperatingSystem;
+    if (currentOS.isWindows()) {
+        return 'win'
+    } else if (currentOS.isLinux()) {
+        return 'linux'
+    } else if (currentOS.isMacOsX()) {
+        return 'mac'
+    }
+    return null
+}
