@@ -1,13 +1,20 @@
 package org.example;
 
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.ResourceBundle;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.opencv.core.Mat;
-import org.opencv.core.Point;
-import org.opencv.core.Rect;
-import org.opencv.core.Scalar;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.fxml.Initializable;
+import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
+import org.opencv.core.*;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.QRCodeDetector;
 import org.opencv.videoio.VideoCapture;
@@ -31,7 +38,7 @@ import static java.lang.Thread.sleep;
  * @since 1.0 (2013-10-20)
  *
  */
-public class FXHelloCVController
+public class FXHelloCVController implements Initializable
 {
     // the FXML button
     @FXML
@@ -39,6 +46,41 @@ public class FXHelloCVController
     // the FXML image view
     @FXML
     private ImageView currentFrame;
+
+    @FXML
+    private ImageView processedFrame;
+
+    @FXML
+    private Label label1;
+    @FXML
+    private Label label2;
+    @FXML
+    private Slider slider1;
+    @FXML
+    private Slider slider2;
+
+    double val1 = 153;
+    double val2 = 255;
+
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        slider1.valueProperty().addListener(new ChangeListener<Number>() {
+            @Override
+            public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
+                val1 = slider1.getValue();
+                label1.setText(String.valueOf(val1));
+            }
+        });
+        slider2.valueProperty().addListener(new ChangeListener<Number>() {
+            @Override
+            public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
+                val2 = slider2.getValue();
+                label2.setText(String.valueOf(val2));
+            }
+        });
+    }
+
+
 
     // a timer for acquiring the video stream
     private ScheduledExecutorService timer;
@@ -48,6 +90,9 @@ public class FXHelloCVController
     private boolean cameraActive = false;
     // the id of the camera to be used
     private static final int cameraId = 0;
+
+    Mat image;
+    Mat image2;
 
     QRCodeDetector qrDecoder;
 
@@ -60,6 +105,10 @@ public class FXHelloCVController
     @FXML
     protected void startCamera(ActionEvent event)
     {
+        Imgcodecs img = new Imgcodecs();
+        String path = "C:/Users/maxim/Pictures/green2.jpg";
+        image = img.imread(path);
+        image2 = img.imread(path);
         if (!this.cameraActive)
         {
             // start the video capture
@@ -83,8 +132,11 @@ public class FXHelloCVController
                         // effectively grab and process a single frame
                         Mat frame = grabFrame();
                         // convert and show the frame
-                        Image imageToShow = Utils.mat2Image(frame);
+                        Image imageToShow = Utils.mat2Image(image);
                         updateImageView(currentFrame, imageToShow);
+                        Mat frame2 = grabFrame2();
+                        Image imageToShow2 = Utils.mat2Image(image2);
+                        updateImageView(processedFrame, imageToShow2);
                     }
                 };
 
@@ -122,6 +174,11 @@ public class FXHelloCVController
         // init everything
         Mat frame = new Mat();
         Mat points = new Mat();
+        Mat toProcess  =frame;
+
+        Imgproc.GaussianBlur(image, new Mat(), new Size(5,5), 1);
+        Imgproc.cvtColor(image, image, Imgproc.COLOR_BGR2GRAY);
+        Imgproc.Canny(image, image, val1, val2);
 
         // check if the capture is open
         if (this.capture.isOpened())
@@ -130,7 +187,7 @@ public class FXHelloCVController
             {
                 // read the current frame
                 this.capture.read(frame);
-                Mat sub = frame.submat(new Rect(new Point(50,50), new Point(400,400)));
+               // Mat sub = frame.submat(new Rect(new Point(50,50), new Point(400,400)));
                 Imgproc.rectangle(frame, new Point(50,50), new Point(400,400), new Scalar(0,0,255), 2);
 
 
@@ -140,23 +197,82 @@ public class FXHelloCVController
                 // if the frame is not empty, process it
                 if (!frame.empty())
                 {
-                    //Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2GRAY);
-                    String result = qrDecoder.detectAndDecode(sub, points);
-                    if(result.isEmpty()) result = "idk";
 
-                    System.out.println(result + " " + points.dump());
-
-                    if (!points.empty()) {
-
-                        for (int i = 0; i < points.cols(); i++) {
-                            Point pt1 = new Point(points.get(0, i));
-                            Point pt2 = new Point(points.get(0, (i + 1) % 4));
-                            Imgproc.line(frame, pt1, pt2, new Scalar(255, 0, 0), 3);
-                        }
-                    }
 
 
                     
+                }
+
+            }
+            catch (Exception e)
+            {
+                // log the error
+                System.err.println("Exception during the image elaboration: " + e);
+            }
+        }
+
+        return image;
+    }
+    private Mat grabFrame2()
+    {
+        // init everything
+        Mat frame = new Mat();
+        List<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Point submatPoint1 = new Point(0,100);
+        Point submatPoint2 = new Point(image.width(),335);
+        Rect submatRect = new Rect(submatPoint1, submatPoint2);
+        Mat initSubmat = image.submat(submatRect);
+        Scalar submatColor = new Scalar(255,0,0);
+        Imgproc.rectangle(image2, submatRect, submatColor, 2);
+        Imgproc.findContours(image, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_NONE);
+        Scalar color = new Scalar(0, 255, 0);
+
+        int peri;
+        MatOfPoint2f approx = new MatOfPoint2f();
+        for(MatOfPoint p : contours){
+            peri = (int) Imgproc.arcLength(new MatOfPoint2f(p.toArray()), true);
+            Imgproc.approxPolyDP(new MatOfPoint2f(p.toArray()), approx, 0.02 * peri, true);
+            if(approx.toArray().length == 4){
+                System.out.println("Found a rectangle");
+                //Imgproc.drawContours(image2, contours, -1, color, 2);
+                Rect r = Imgproc.boundingRect(p);
+                if(submatRect.contains(r.tl()) && submatRect.contains(r.br()) && r.area() > 3000 && r.area() < 10000){
+                    Imgproc.rectangle(image2, r.tl(), r.br(), new Scalar(0, 0, 255), 2);
+                    Mat submat = image2.submat(r);
+                    //Mat yCrCb = new Mat();
+                    //Mat cB = new Mat();
+                    //Imgproc.cvtColor(submat, yCrCb, Imgproc.COLOR_BGR2YCrCb);
+                    //Core.extractChannel(yCrCb, cB, 1);
+                    int colorAvg = (int) Core.mean(submat).val[1]; // 42
+                    Imgproc.putText(image2, Integer.toString(colorAvg), r.tl(), Imgproc.FONT_HERSHEY_COMPLEX, 1, new Scalar(0, 0, 255), 2);
+                    //Imgproc.putText(image2, Double.toString(r.area()), r.tl(), Imgproc.FONT_HERSHEY_COMPLEX, 1, new Scalar(0, 0, 255), 2);
+                }
+
+            }
+        }
+
+
+        // check if the capture is open
+        if (this.capture.isOpened())
+        {
+            try
+            {
+                // read the current frame
+                this.capture.read(frame);
+                // Mat sub = frame.submat(new Rect(new Point(50,50), new Point(400,400)));
+                Imgproc.rectangle(frame, new Point(50,50), new Point(400,400), new Scalar(0,0,255), 2);
+
+
+
+
+
+                // if the frame is not empty, process it
+                if (!frame.empty())
+                {
+
+
+
                 }
 
             }
@@ -217,5 +333,6 @@ public class FXHelloCVController
     {
         this.stopAcquisition();
     }
+
 
 }
