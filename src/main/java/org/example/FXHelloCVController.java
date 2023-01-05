@@ -62,6 +62,8 @@ public class FXHelloCVController implements Initializable
     double val1 = 153;
     double val2 = 255;
 
+
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         slider1.valueProperty().addListener(new ChangeListener<Number>() {
@@ -219,34 +221,47 @@ public class FXHelloCVController implements Initializable
         Mat frame = new Mat();
         List<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchy = new Mat();
-        Point submatPoint1 = new Point(0,100);
+        Point submatPoint1 = new Point(0,105);
         Point submatPoint2 = new Point(image.width(),335);
         Rect submatRect = new Rect(submatPoint1, submatPoint2);
         Mat initSubmat = image.submat(submatRect);
         Scalar submatColor = new Scalar(255,0,0);
         Imgproc.rectangle(image2, submatRect, submatColor, 2);
-        Imgproc.findContours(image, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_NONE);
+        Imgproc.findContours(image, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_NONE);
         Scalar color = new Scalar(0, 255, 0);
 
         int peri;
+        int numFound = 0;
+        int colorAvgRed = 0;
+        int colorAvgBlue = 0;
+        Mat detectedSubmat;
         MatOfPoint2f approx = new MatOfPoint2f();
         for(MatOfPoint p : contours){
             peri = (int) Imgproc.arcLength(new MatOfPoint2f(p.toArray()), true);
             Imgproc.approxPolyDP(new MatOfPoint2f(p.toArray()), approx, 0.02 * peri, true);
             if(approx.toArray().length == 4){
-                System.out.println("Found a rectangle");
+                //System.out.println("Found a rectangle");
                 //Imgproc.drawContours(image2, contours, -1, color, 2);
                 Rect r = Imgproc.boundingRect(p);
                 if(submatRect.contains(r.tl()) && submatRect.contains(r.br()) && r.area() > 3000 && r.area() < 10000){
-                    Imgproc.rectangle(image2, r.tl(), r.br(), new Scalar(0, 0, 255), 2);
-                    Mat submat = image2.submat(r);
-                    //Mat yCrCb = new Mat();
-                    //Mat cB = new Mat();
+                    Imgproc.rectangle(image2,r, new Scalar(0, 0, 255), 2);
+                    detectedSubmat = image2.submat(r);
+                   // Mat yCrCb = new Mat();
+                   // Mat cB = new Mat();
+                   // Mat cR = new Mat();
                     //Imgproc.cvtColor(submat, yCrCb, Imgproc.COLOR_BGR2YCrCb);
                     //Core.extractChannel(yCrCb, cB, 1);
-                    int colorAvg = (int) Core.mean(submat).val[1]; // 42
-                    Imgproc.putText(image2, Integer.toString(colorAvg), r.tl(), Imgproc.FONT_HERSHEY_COMPLEX, 1, new Scalar(0, 0, 255), 2);
+                   // Core.extractChannel(yCrCb, cR, 2);
+                   // int colorAvg1 = (int) Core.mean(cB).val[0];
+                   // int colorAvg2 = (int) Core.mean(cR).val[0];
+                    colorAvgRed = (int) Core.mean(detectedSubmat).val[2];
+                    colorAvgBlue = (int) Core.mean(detectedSubmat).val[0];
+                    //System.out.println(r.tl());
+                    numFound++;
+                    Imgproc.putText(image2, Integer.toString(colorAvgRed), r.tl(), Imgproc.FONT_HERSHEY_COMPLEX, 1, new Scalar(0, 0, 255), 2);
+                    Imgproc.putText(image2, Integer.toString(colorAvgBlue), r.br(), Imgproc.FONT_HERSHEY_COMPLEX, 1, new Scalar(0, 0, 255), 2);
                     //Imgproc.putText(image2, Double.toString(r.area()), r.tl(), Imgproc.FONT_HERSHEY_COMPLEX, 1, new Scalar(0, 0, 255), 2);
+
                 }
 
             }
@@ -281,6 +296,21 @@ public class FXHelloCVController implements Initializable
                 // log the error
                 System.err.println("Exception during the image elaboration: " + e);
             }
+        }
+
+        if (numFound == 1){
+            if(colorAvgRed > 100){
+                System.out.println("Red");
+            }
+            else if(colorAvgBlue > 80){
+                System.out.println("Blue");
+            }
+            else{
+                System.out.println("Green");
+            }
+        }
+        else {
+            System.out.println("Too many rectangles " + numFound);
         }
 
         return frame;
